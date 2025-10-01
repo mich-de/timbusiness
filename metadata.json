@@ -1,0 +1,5 @@
+{
+  "name": "TIM Business Roaming Advisor",
+  "description": "A web application to help TIM Business users with the '5G Power Unlimited Ricaricabile' plan choose the best roaming add-on for their international travel needs. Select a destination to see the most suitable options.",
+  "requestFramePermissions": []
+}
