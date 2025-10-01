@@ -1,124 +1,125 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import { OptionCard } from './components/OptionCard';
+import React, { useState } from 'react';
+import type { ItineraryItem } from './types';
 import { Header } from './components/Header';
-import { getOptionsForItinerary } from './services/optionService';
-import { ALL_COUNTRIES, ALL_OPTIONS } from './constants';
-import type { Option, ItineraryItem } from './types';
 import { Footer } from './components/Footer';
 import { ItineraryPlanner } from './components/ItineraryPlanner';
+import { OptionCard } from './components/OptionCard';
 import { parseItineraryFromText } from './services/geminiService';
-import { SparklesIcon } from './components/Icons';
+import { findRecommendedOptions, RecommendedOptions } from './services/optionService';
+import { AllOptions } from './components/AllOptions';
 
-const App: React.FC = () => {
+function App() {
   const [itinerary, setItinerary] = useState<ItineraryItem[]>([]);
-  const [recommendedOptions, setRecommendedOptions] = useState<Option[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [recommended, setRecommended] = useState<RecommendedOptions | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const currentPlan = useMemo<Option>(() => ({
-      id: 'base-plan',
-      name: '5G Power Unlimited Ricaricabile',
-      type: 'base',
-      cost: '35€',
-      costUnit: 'mese',
-      description: "Il tuo piano base attuale, ideale per l'Italia e l'Europa.",
-      includes: {
-        calls: 'Nazionali e Roaming UE Illimitate',
-        data: '100 GB in Roaming Europa',
-        sms: '1000 SMS/mese',
-        internationalCalls: '1000 minuti/mese (con limiti verso 20 paesi)',
-      },
-      coverage: { type: 'countries', countries: ALL_COUNTRIES.filter(c => c.category === 'EU').map(c => c.name) },
-      notes: 'I servizi 5G sono inclusi.'
-  }), []);
-
   const handleParseItinerary = async (text: string) => {
-    if (!text.trim()) {
-      setError("Inserisci i dettagli del tuo viaggio.");
-      return;
-    }
     setIsLoading(true);
     setError(null);
+    setRecommended(null);
     try {
-      const parsedItems = await parseItineraryFromText(text);
-      setItinerary(parsedItems);
-      const options = getOptionsForItinerary(parsedItems);
-      setRecommendedOptions(options);
+      const parsed = await parseItineraryFromText(text);
+      setItinerary(parsed);
+      
+      if (parsed.length > 0) {
+        const options = findRecommendedOptions(parsed);
+        setRecommended(options);
+      } else {
+        setRecommended(null);
+      }
+
     } catch (e) {
       console.error(e);
-      setError("Impossibile analizzare l'itinerario. Assicurati che il testo contenga destinazioni e date chiare.");
-      setItinerary([]);
-      setRecommendedOptions([]);
+      setError('Spiacenti, si è verificato un errore durante l\'analisi del testo. Prova a riformulare la richiesta o aggiungi manualmente i paesi.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleItineraryChange = (updatedItinerary: ItineraryItem[]) => {
-    setItinerary(updatedItinerary);
-    if(updatedItinerary.length > 0) {
-        const options = getOptionsForItinerary(updatedItinerary);
-        setRecommendedOptions(options);
+  const handleItineraryChange = (newItinerary: ItineraryItem[]) => {
+    setItinerary(newItinerary);
+    if (newItinerary.length > 0) {
+      const options = findRecommendedOptions(newItinerary);
+      setRecommended(options);
     } else {
-        setRecommendedOptions([]);
+      setRecommended(null);
     }
-  };
+  }
+
+  const hasResults = recommended && (recommended.baseOption || recommended.recommended.length > 0);
 
   return (
-    <div className="min-h-screen bg-tim-gray-100 font-sans text-tim-gray-800">
+    <div className="bg-tim-gray-100 min-h-screen font-sans text-tim-gray-800">
       <Header />
-      <main className="container mx-auto p-4 md:p-8">
-        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8 mb-8">
-          <h2 className="text-2xl font-bold text-tim-blue mb-2">Il Tuo Piano Attuale</h2>
-          <p className="text-tim-gray-600 mb-4">
-            Le opzioni consigliate di seguito sono aggiuntive al tuo piano base.
-          </p>
-          <div className="w-full max-w-md mx-auto">
-             <OptionCard option={currentPlan} isBasePlan={true}/>
-          </div>
-        </div>
+      <main className="container mx-auto px-4 py-8 md:px-8 md:py-12">
+        <div className="max-w-4xl mx-auto">
+          
+          {/* Section 1: Itinerary Planner */}
+          <section className="bg-white rounded-xl shadow-lg p-6 md:p-8">
+            <h2 className="text-2xl font-bold text-tim-blue">1. Inserisci il tuo Itinerario</h2>
+            <p className="text-tim-gray-600 mt-1">
+                Descrivi il tuo viaggio o aggiungi manually le destinazioni. Il nostro assistente AI capirà dove stai andando.
+            </p>
+            <div className="mt-6">
+              <ItineraryPlanner
+                itinerary={itinerary}
+                onItineraryChange={handleItineraryChange}
+                onParse={handleParseItinerary}
+                isLoading={isLoading}
+                error={error}
+              />
+            </div>
+          </section>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 md:p-8">
-           <div className="flex items-center gap-3 mb-2">
-             <div className="w-8 h-8 text-tim-red"><SparklesIcon/></div>
-             <h2 className="text-2xl font-bold text-tim-blue">Pianificatore di Viaggio AI</h2>
-           </div>
-          <p className="text-tim-gray-600 mb-6">
-            Incolla i dettagli del tuo viaggio (email, appunti, etc.) e lascia che l'IA trovi le migliori opzioni per te.
-          </p>
-          <ItineraryPlanner
-            itinerary={itinerary}
-            onItineraryChange={handleItineraryChange}
-            onParse={handleParseItinerary}
-            isLoading={isLoading}
-            error={error}
-          />
+          {/* Section 2: Results */}
+          {isLoading && (
+             <div className="text-center py-12">
+                <svg className="animate-spin mx-auto h-10 w-10 text-tim-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p className="mt-4 text-lg font-semibold text-tim-blue">Analisi dell'itinerario in corso...</p>
+             </div>
+          )}
 
-          <div className="mt-8">
-            {itinerary.length > 0 && recommendedOptions.length > 0 && (
-              <>
-                <h3 className="text-xl font-bold text-tim-blue mb-4">Opzioni Consigliate per il Tuo Itinerario</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {recommendedOptions.map(option => (
+          {hasResults && (
+            <section className="mt-8 animate-fade-in">
+              <h2 className="text-2xl font-bold text-tim-blue mb-4">2. Opzioni Consigliate per Te</h2>
+              <div className="space-y-6">
+                  {recommended.baseOption && (
+                    <OptionCard option={recommended.baseOption} isBasePlan={true} />
+                  )}
+                  {recommended.recommended.length > 0 && (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {recommended.recommended.map(option => (
+                        <OptionCard key={option.id} option={option} />
+                      ))}
+                    </div>
+                  )}
+              </div>
+            </section>
+          )}
+
+          {recommended && recommended.special.length > 0 && (
+            <section className="mt-8 animate-fade-in">
+              <h2 className="text-2xl font-bold text-tim-blue mb-4">Opzioni Speciali</h2>
+               <p className="text-tim-gray-600 mb-4 -mt-2">Queste opzioni hanno tariffe a consumo e non sono incluse nei piani standard. Sono utili per viaggi in nave o in aereo.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {recommended.special.map(option => (
                     <OptionCard key={option.id} option={option} />
                   ))}
-                </div>
-              </>
-            )}
-            {itinerary.length > 0 && recommendedOptions.length === 0 && (
-              <div className="text-center py-10 px-6 bg-tim-gray-100 rounded-lg">
-                <h3 className="text-xl font-semibold text-tim-blue">Nessuna opzione aggiuntiva necessaria</h3>
-                <p className="text-tim-gray-600 mt-2">
-                  Le destinazioni del tuo itinerario sono coperte dal tuo piano base "5G Power Unlimited".
-                </p>
               </div>
-            )}
-          </div>
+            </section>
+          )}
+          
+          <AllOptions />
+
         </div>
       </main>
       <Footer />
     </div>
   );
-};
+}
 
 export default App;

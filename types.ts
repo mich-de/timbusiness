@@ -40,4 +40,5 @@ export interface Option {
 export interface Country {
   name: string;
   category: CoverageCategory;
+  code: string;
 }

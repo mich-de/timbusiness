@@ -2,11 +2,14 @@
 import React from 'react';
 import type { Option, OptionIncludes } from '../types';
 import { BadgeCheckIcon, ChatBubbleBottomCenterTextIcon, GlobeAltIcon, MapPinIcon, PhoneIcon, WifiIcon } from './Icons';
+import { ALL_COUNTRIES } from '../constants';
 
 interface OptionCardProps {
   option: Option;
   isBasePlan?: boolean;
 }
+
+const countryCodeMap = new Map(ALL_COUNTRIES.map(c => [c.name, c.code]));
 
 const renderIncludes = (includes: OptionIncludes) => {
   const items = [];
@@ -34,7 +37,7 @@ const renderIncludes = (includes: OptionIncludes) => {
 
 export const OptionCard: React.FC<OptionCardProps> = ({ option, isBasePlan = false }) => {
   return (
-    <div className={`flex flex-col rounded-xl overflow-hidden shadow-lg h-full ${isBasePlan ? 'bg-tim-blue/5' : 'bg-white'}`}>
+    <div className={`flex flex-col rounded-xl overflow-hidden shadow-lg ${!isBasePlan ? 'h-full' : ''} ${isBasePlan ? 'bg-tim-blue/5' : 'bg-white transition-all duration-300 hover:shadow-2xl hover:-translate-y-1'}`}>
       {option.isRecommended && !isBasePlan && (
         <div className="bg-tim-red text-white text-xs font-bold uppercase tracking-wider text-center py-1.5 flex items-center justify-center gap-1.5">
           <BadgeCheckIcon />
@@ -57,11 +60,22 @@ export const OptionCard: React.FC<OptionCardProps> = ({ option, isBasePlan = fal
                   <span>Copertura per il tuo itinerario</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                  {option.coveredItineraryCountries.map(country => (
-                      <span key={country} className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                  {option.coveredItineraryCountries.map(country => {
+                    const countryCode = countryCodeMap.get(country);
+                    return (
+                      <span key={country} className="inline-flex items-center gap-1.5 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {countryCode && (
+                            <img 
+                              src={`https://flagcdn.com/w20/${countryCode}.png`}
+                              width="16"
+                              alt={country}
+                              className="h-auto rounded-sm"
+                            />
+                          )}
                           {country}
                       </span>
-                  ))}
+                    );
+                  })}
               </div>
           </div>
         )}
